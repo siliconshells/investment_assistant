@@ -8,4 +8,4 @@ data:
   LOG_LEVEL: "info"
   AWS_REGION: "us-east-1"
   S3_BUCKET_NAME: "investment-assistant-data"
-  LLM_PROVIDER: "anthropic"
+  LLM_PROVIDER: "openai"
