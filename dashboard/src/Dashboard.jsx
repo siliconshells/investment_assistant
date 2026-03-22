@@ -9,6 +9,10 @@ import {
   ArrowDownRight, RefreshCw, Radio,
 } from "lucide-react";
 
+// In dev, Vite proxy rewrites /api/* → localhost:8000/*.
+// In production, dashboard is served from FastAPI itself — no prefix needed.
+const API = import.meta.env.DEV ? "/api" : "";
+
 // ── Mock data generator ─────────────────────────────────────────────────────
 
 function gen(base, vol, trend) {
@@ -134,7 +138,7 @@ export default function Dashboard() {
   useEffect(() => {
     let es;
     function connect() {
-      es = new EventSource("/api/events/pipeline");
+      es = new EventSource(`${API}/events/pipeline`);
       sseRef.current = es;
 
       es.addEventListener("connected", () => {
@@ -147,7 +151,7 @@ export default function Dashboard() {
 
         // Auto-refresh: reload all ticker data
         for (const t of TICKERS) {
-          fetch(`/api/prices/${t}`)
+          fetch(`${API}/prices/${t}`)
             .then(r => r.ok ? r.json() : null)
             .then(d => {
               if (d?.prices) {
@@ -194,7 +198,7 @@ export default function Dashboard() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch(`/api/prices/${ticker}/refresh`, { method: "POST" });
+      const res = await fetch(`${API}/prices/${ticker}/refresh`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         if (data.prices) {

@@ -100,6 +100,9 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
 
+      - name: Verify cluster access
+        run: kubectl auth can-i get deployments -n investment
+
       - name: Deploy to Kubernetes
         env:
           IMAGE: ${{ needs.build.outputs.image_tag }}
@@ -108,8 +111,8 @@ jobs:
           cd k8s/overlays/prod
           kustomize edit set image investment-api=$IMAGE
 
-          # Apply via Kustomize (validates and renders locally before sending)
-          kubectl apply -k .
+          # Apply via Kustomize
+          kubectl apply -k . --server-side
 
           # Wait for rollout
           kubectl rollout status deployment/investment-api -n investment --timeout=120s

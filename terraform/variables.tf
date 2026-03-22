@@ -39,3 +39,9 @@ variable "eks_max_size" {
   type        = number
   default     = 4
 }
+
+variable "ci_deploy_role_arn" {
+  description = "IAM role ARN used by GitHub Actions CI/CD to deploy to EKS"
+  type        = string
+  default     = ""  # Set via terraform.tfvars or -var
+}

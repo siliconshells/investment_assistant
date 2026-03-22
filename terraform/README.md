@@ -53,4 +53,8 @@ Override via `terraform.tfvars` or `-var`:
 aws_region             = "us-west-2"
 eks_node_instance_type = "t3.small"
 eks_desired_capacity   = 1
+
+# Required for CI/CD — the IAM role ARN that GitHub Actions assumes.
+# This gets added to the EKS cluster's access entries so kubectl works.
+ci_deploy_role_arn     = "arn:aws:iam::123456789012:role/github-actions-deploy"
 ```

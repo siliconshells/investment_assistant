@@ -12,5 +12,7 @@ resources:
   # Secrets are NOT included here — apply manually or via CI.
   # See secrets.template.yaml for instructions.
 
-commonLabels:
-  project: investment-assistant
+labels:
+  - pairs:
+      project: investment-assistant
+    includeSelectors: true

@@ -7,10 +7,12 @@ Interactive docs available at /docs (Swagger UI).
 import asyncio
 import logging
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.routers import analysis, prices
@@ -184,3 +186,37 @@ async def pipeline_complete():
 
     logger.info("Pipeline complete — notified %d dashboard clients", client_count)
     return {"notified_clients": client_count}
+
+
+# -------------------------------------------------------------------------
+# Dashboard static files (served from Docker build)
+# -------------------------------------------------------------------------
+# In production, the Dockerfile builds the React dashboard into ./static/.
+# In local dev, this directory won't exist — the React dev server at :3000
+# handles it instead, proxying /api/* back to this server.
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+if STATIC_DIR.is_dir():
+    # Serve Vite's bundled assets (JS, CSS, images)
+    app.mount(
+        "/assets",
+        StaticFiles(directory=STATIC_DIR / "assets"),
+        name="static-assets",
+    )
+
+    # SPA catch-all: any route not matched by the API returns index.html
+    # so client-side routing works on page refresh.
+    @app.get("/{path:path}", include_in_schema=False)
+    async def serve_spa(path: str):
+        # If a real static file exists (favicon, etc.), serve it
+        file_path = STATIC_DIR / path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        # Otherwise, serve the SPA entry point
+        return FileResponse(STATIC_DIR / "index.html")
+else:
+    logger.info(
+        "No static/ directory found — dashboard not bundled. "
+        "Run 'npm run build' in dashboard/ or use Docker to include it."
+    )

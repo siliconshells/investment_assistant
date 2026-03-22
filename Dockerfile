@@ -1,26 +1,38 @@
-# ---- Build stage ----
-FROM python:3.12-slim AS builder
+# ---- Stage 1: Build React dashboard ----
+FROM node:20-slim AS frontend
+
+WORKDIR /frontend
+COPY dashboard/package.json dashboard/package-lock.json* ./
+RUN npm ci --no-audit --no-fund 2>/dev/null || npm install --no-audit --no-fund
+COPY dashboard/ ./
+RUN npm run build
+
+# ---- Stage 2: Install Python dependencies ----
+FROM python:3.12-slim AS backend
 
 WORKDIR /build
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ---- Runtime stage ----
+# ---- Stage 3: Runtime ----
 FROM python:3.12-slim
 
 LABEL maintainer="data-engineering"
-LABEL description="AI Investment Research Assistant API"
+LABEL description="AI Investment Research Assistant — API + Dashboard"
 
 WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /install /usr/local
+# Python packages
+COPY --from=backend /install /usr/local
 
-# Copy application code
+# Application code
 COPY app/ ./app/
 COPY .env.example ./.env
 
-# Non-root user for security
+# Built dashboard static files
+COPY --from=frontend /frontend/dist ./static/
+
+# Non-root user
 RUN useradd --create-home appuser
 USER appuser
 

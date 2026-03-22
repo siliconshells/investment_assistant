@@ -8,6 +8,16 @@ venv/
 # Environment
 .env
 
+# K8s secrets (real values — template is committed, actual secrets are not)
+k8s/**/secrets.yaml
+
+# Local data (dev mode storage fallback)
+data/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+
 # Terraform
 terraform/.terraform/
 terraform/*.tfstate*
@@ -17,7 +27,6 @@ terraform/.terraform.lock.hcl
 # IDE
 .vscode/
 .idea/
-info.txt
 
 # OS
 .DS_Store

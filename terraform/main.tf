@@ -24,13 +24,16 @@ module "vpc" {
   enable_nat_gateway   = true
   single_nat_gateway   = true  # cost-saving for demo; use per-AZ in prod
   enable_dns_hostnames = true
+  enable_dns_support   = true
 
-  # Tags required for EKS auto-discovery
+  # Tags required for EKS auto-discovery — cluster name must be included
   public_subnet_tags = {
-    "kubernetes.io/role/elb" = 1
+    "kubernetes.io/role/elb"                              = 1
+    "kubernetes.io/cluster/${local.name}-eks"              = "shared"
   }
   private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = 1
+    "kubernetes.io/role/internal-elb"                      = 1
+    "kubernetes.io/cluster/${local.name}-eks"              = "shared"
   }
 }
 
@@ -48,7 +51,51 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
-  cluster_endpoint_public_access = true
+  # Nodes in private subnets need the private endpoint to reach the API
+  # without going through NAT → public internet → back in.
+  cluster_endpoint_public_access  = true
+  cluster_endpoint_private_access = true
+
+  # Use EKS API for auth (required for access_entries)
+  authentication_mode = "API_AND_CONFIG_MAP"
+
+  # Grant the Terraform caller admin access to the cluster
+  enable_cluster_creator_admin_permissions = true
+
+  # Grant the CI/CD deploy role access to the cluster
+  access_entries = var.ci_deploy_role_arn != "" ? {
+    ci_deploy = {
+      principal_arn = var.ci_deploy_role_arn
+      policy_associations = {
+        cluster_admin = {
+          policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  } : {}
+
+  # Allow nodes and pods to talk to the control plane
+  node_security_group_additional_rules = {
+    ingress_self_all = {
+      description = "Node-to-node communication"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "ingress"
+      self        = true
+    }
+    egress_all = {
+      description = "Node outbound"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "egress"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
 
   eks_managed_node_groups = {
     default = {
@@ -56,11 +103,75 @@ module "eks" {
       desired_size   = var.eks_desired_capacity
       min_size       = var.eks_min_size
       max_size       = var.eks_max_size
+      subnet_ids     = module.vpc.private_subnets
     }
   }
 
   # Enable IRSA (IAM Roles for Service Accounts)
   enable_irsa = true
+}
+
+# =============================================================================
+# VPC Endpoints — so nodes in private subnets can reach AWS APIs
+# without depending solely on NAT gateway
+# =============================================================================
+
+# S3 gateway endpoint (free, needed for pulling ECR image layers)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = module.vpc.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+
+  route_table_ids = module.vpc.private_route_table_ids
+
+  tags = { Name = "${local.name}-s3-endpoint" }
+}
+
+# Interface endpoints for ECR + STS (nodes need these to pull images and auth)
+resource "aws_security_group" "vpc_endpoints" {
+  name_prefix = "${local.name}-vpce-"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
+
+  tags = { Name = "${local.name}-vpce-sg" }
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name}-ecr-api" }
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name}-ecr-dkr" }
+}
+
+resource "aws_vpc_endpoint" "sts" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.sts"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name}-sts" }
 }
 
 # =============================================================================
