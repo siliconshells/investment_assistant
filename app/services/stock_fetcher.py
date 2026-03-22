@@ -35,7 +35,7 @@ async def fetch_daily_prices(ticker: str) -> list[dict]:
 
     time_series = data.get("Time Series (Daily)", {})
     if not time_series:
-        logger.warning("No data returned for %s — check API key / ticker", ticker)
+        logger.warning("No data returned for %s — response: %s", ticker, data)
         return []
 
     prices = []

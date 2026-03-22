@@ -6,7 +6,7 @@ import {
 import {
   TrendingUp, TrendingDown, Activity, MessageSquare,
   Send, Database, Cpu, Zap, BarChart3, ArrowUpRight,
-  ArrowDownRight, RefreshCw, Radio,
+  ArrowDownRight, Radio,
 } from "lucide-react";
 
 // In dev, Vite proxy rewrites /api/* → localhost:8000/*.
@@ -30,7 +30,6 @@ function gen(base, vol, trend) {
 }
 
 const MOCK_PRICES = { AAPL: gen(178, 12, 0.3), NVDA: gen(420, 30, 1.2), MSFT: gen(410, 15, 0.4) };
-const TICKERS = Object.keys(MOCK_PRICES);
 
 function pipelineStatusToRows(tickers) {
   let id = 1;
@@ -135,12 +134,26 @@ export default function Dashboard() {
   const [input, setInput] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState(() => buildAnalysis("AAPL", MOCK_PRICES["AAPL"]));
-  const [refreshing, setRefreshing] = useState(false);
+  const [watchlist, setWatchlist] = useState([]);
+  const watchlistRef = useRef([]);
   const [sseStatus, setSseStatus] = useState("disconnected"); // disconnected | connected | error
   const [lastPipelineEvent, setLastPipelineEvent] = useState(null);
   const [pipelineRows, setPipelineRows] = useState([]);
   const chatEnd = useRef(null);
   const sseRef = useRef(null);
+
+  useEffect(() => {
+    fetch(`${API}/watchlist`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.tickers) {
+          setWatchlist(d.tickers);
+          watchlistRef.current = d.tickers;
+          setTicker(d.tickers[0]);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchPipelineStatus = useCallback(() => {
     fetch(`${API}/pipeline/status`)
@@ -167,7 +180,7 @@ export default function Dashboard() {
         fetchPipelineStatus();
 
         // Auto-refresh: reload all ticker data
-        for (const t of TICKERS) {
+        for (const t of watchlistRef.current) {
           fetch(`${API}/prices/${t}`)
             .then(r => r.ok ? r.json() : null)
             .then(d => {
@@ -212,28 +225,6 @@ export default function Dashboard() {
 
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  // ── Manual refresh ──
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const res = await fetch(`${API}/prices/${ticker}/refresh`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.prices) {
-          setPriceData(prev => ({ ...prev, [ticker]: data.prices }));
-        }
-      }
-    } catch {
-      // Fallback: regenerate mock data to simulate a refresh
-      setPriceData(prev => {
-        const bases = { AAPL: [178, 12, 0.3], NVDA: [420, 30, 1.2], MSFT: [410, 15, 0.4] };
-        const args = bases[ticker] || [200, 10, 0.5];
-        return { ...prev, [ticker]: gen(...args) };
-      });
-    }
-    fetchPipelineStatus();
-    setRefreshing(false);
-  }, [ticker, fetchPipelineStatus]);
 
   // ── AI Analysis ──
   const runAnalysis = () => {
@@ -321,13 +312,7 @@ export default function Dashboard() {
       <div style={{ padding: "22px 26px", display: "flex", flexDirection: "column", gap: 18 }}>
         {/* ─── Ticker bar with refresh and last-updated ─── */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {TICKERS.map(t => <button key={t} className={`tk ${t === ticker ? "on" : ""}`} onClick={() => setTicker(t)}>{t}</button>)}
-
-          {/* Refresh button */}
-          <button className="rb" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw size={13} className={refreshing ? "spinner" : ""} />
-            {refreshing ? "Refreshing..." : "Refresh Data"}
-          </button>
+          {watchlist.map(t => <button key={t} className={`tk ${t === ticker ? "on" : ""}`} onClick={() => setTicker(t)}>{t}</button>)}
 
           {/* Last updated + price */}
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
@@ -449,11 +434,11 @@ export default function Dashboard() {
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
                 <span style={{ marginLeft: "auto", fontSize: 10.5, fontFamily: "'Source Code Pro', monospace", color: C.textDim }}>intraday_stock_etl</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {pipelineRows.map(t => (
                   <div key={t.id} style={{
                     display: "grid", gridTemplateColumns: "7px 50px 64px 1fr 46px", alignItems: "center", gap: 8,
-                    padding: "5px 8px", borderRadius: 6, fontSize: 11.5, fontFamily: "'Source Code Pro', monospace",
+                    padding: "3px 8px", borderRadius: 6, fontSize: 11.5, fontFamily: "'Source Code Pro', monospace",
                     background: t.status === "failed" ? C.redSoft : "transparent",
                   }}>
                     <Dot status={t.status} />
