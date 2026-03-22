@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # AWS
     aws_region: str = "us-east-1"
     s3_bucket_name: str = "investment-assistant-data"
-    aws_secret_access_key = ""
+    aws_access_key_id = ""
     aws_secret_access_key = ""
 
     # LLM
