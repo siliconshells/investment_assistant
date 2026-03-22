@@ -101,16 +101,15 @@ jobs:
         run: aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
 
       - name: Deploy to Kubernetes
+        env:
+          IMAGE: ${{ needs.build.outputs.image_tag }}
         run: |
-          # Apply base configs
-          kubectl apply -f k8s/config.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl apply -f k8s/deployment.yaml
+          # Set the exact image from this build into the prod overlay
+          cd k8s/overlays/prod
+          kustomize edit set image investment-api=$IMAGE
 
-          # Update image to the exact commit SHA
-          kubectl set image deployment/investment-api \
-            api=${{ needs.build.outputs.image_tag }} \
-            -n investment
+          # Apply via Kustomize (validates and renders locally before sending)
+          kubectl apply -k .
 
           # Wait for rollout
           kubectl rollout status deployment/investment-api -n investment --timeout=120s
