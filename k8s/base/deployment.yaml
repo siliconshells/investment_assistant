@@ -19,14 +19,14 @@ spec:
       serviceAccountName: investment-api-sa
       containers:
         - name: api
-          image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/investment-api:latest
+          image: investment-api:latest  # overridden by Kustomize overlay
           ports:
             - containerPort: 8000
           envFrom:
-            - secretRef:
-                name: investment-api-secrets
             - configMapRef:
                 name: investment-api-config
+            - secretRef:
+                name: investment-api-secrets
           resources:
             requests:
               memory: "256Mi"
@@ -46,4 +46,3 @@ spec:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 10
-      restartPolicy: Always

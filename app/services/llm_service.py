@@ -1,10 +1,13 @@
-"""LLM integration service for OpenAI.
+"""LLM integration service supporting OpenAI and Anthropic Claude.
 
 Abstracts provider differences behind a single `analyze()` call.
 Includes token-aware prompt construction for cost efficiency.
 """
 
 import logging
+from typing import Any
+
+import anthropic
 import openai
 
 from app.config import get_settings
@@ -31,7 +34,9 @@ def _format_price_context(prices: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def analyze_with_openai(ticker: str, prices: list[dict], question: str) -> str:
+async def analyze_with_openai(
+    ticker: str, prices: list[dict], question: str
+) -> str:
     """Call OpenAI chat completion."""
     settings = get_settings()
     client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
@@ -55,7 +60,32 @@ async def analyze_with_openai(ticker: str, prices: list[dict], question: str) ->
     return response.choices[0].message.content
 
 
-async def analyze(ticker: str, prices: list[dict], question: str) -> tuple[str, str]:
+async def analyze_with_anthropic(
+    ticker: str, prices: list[dict], question: str
+) -> str:
+    """Call Anthropic Claude messages API."""
+    settings = get_settings()
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    price_context = _format_price_context(prices)
+    user_msg = (
+        f"Ticker: {ticker}\n\n"
+        f"Recent price data:\n{price_context}\n\n"
+        f"Question: {question}"
+    )
+
+    response = await client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=512,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return response.content[0].text
+
+
+async def analyze(
+    ticker: str, prices: list[dict], question: str
+) -> tuple[str, str]:
     """Route to the configured LLM provider.
 
     Returns:
@@ -67,3 +97,6 @@ async def analyze(ticker: str, prices: list[dict], question: str) -> tuple[str, 
     if provider == "openai":
         text = await analyze_with_openai(ticker, prices, question)
         return text, "openai"
+    else:
+        text = await analyze_with_anthropic(ticker, prices, question)
+        return text, "anthropic"

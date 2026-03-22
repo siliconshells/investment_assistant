@@ -6,6 +6,7 @@ Demonstrates well-tested, maintainable backend patterns:
 - Fixtures for repeatable test data
 """
 
+import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,40 +19,17 @@ client = TestClient(app)
 
 # ---- Fixtures ----
 
-
 @pytest.fixture
 def sample_prices():
     """Representative price data for testing."""
     return [
-        {
-            "date": "2024-09-16",
-            "open": 216.5,
-            "high": 217.0,
-            "low": 213.6,
-            "close": 216.3,
-            "volume": 59312000,
-        },
-        {
-            "date": "2024-09-17",
-            "open": 215.8,
-            "high": 216.9,
-            "low": 214.5,
-            "close": 216.8,
-            "volume": 45210000,
-        },
-        {
-            "date": "2024-09-18",
-            "open": 217.5,
-            "high": 222.5,
-            "low": 217.1,
-            "close": 220.7,
-            "volume": 78432000,
-        },
+        {"date": "2024-09-16", "open": 216.5, "high": 217.0, "low": 213.6, "close": 216.3, "volume": 59312000},
+        {"date": "2024-09-17", "open": 215.8, "high": 216.9, "low": 214.5, "close": 216.8, "volume": 45210000},
+        {"date": "2024-09-18", "open": 217.5, "high": 222.5, "low": 217.1, "close": 220.7, "volume": 78432000},
     ]
 
 
 # ---- Health Endpoint ----
-
 
 class TestHealth:
     def test_health_returns_ok(self):
@@ -64,7 +42,6 @@ class TestHealth:
 
 
 # ---- Price Endpoint ----
-
 
 class TestPrices:
     @patch("app.routers.prices.storage.load_prices")
@@ -81,13 +58,9 @@ class TestPrices:
         assert data["prices"][0]["date"] == "2024-09-16"
 
     @patch("app.routers.prices.storage.save_prices")
-    @patch(
-        "app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock
-    )
+    @patch("app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
     @patch("app.routers.prices.storage.load_prices")
-    def test_get_prices_fetches_when_not_stored(
-        self, mock_load, mock_fetch, mock_save, sample_prices
-    ):
+    def test_get_prices_fetches_when_not_stored(self, mock_load, mock_fetch, mock_save, sample_prices):
         """Fetches from Alpha Vantage and stores when no cached data exists."""
         mock_load.return_value = None
         mock_fetch.return_value = sample_prices
@@ -98,9 +71,7 @@ class TestPrices:
         mock_fetch.assert_called_once_with("MSFT")
         mock_save.assert_called_once_with("MSFT", sample_prices)
 
-    @patch(
-        "app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock
-    )
+    @patch("app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
     @patch("app.routers.prices.storage.load_prices")
     def test_get_prices_404_when_no_data(self, mock_load, mock_fetch):
         """Returns 404 when ticker has no data anywhere."""
@@ -111,9 +82,7 @@ class TestPrices:
         assert response.status_code == 404
 
     @patch("app.routers.prices.storage.save_prices")
-    @patch(
-        "app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock
-    )
+    @patch("app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
     def test_refresh_forces_fresh_fetch(self, mock_fetch, mock_save, sample_prices):
         """POST /prices/{ticker}/refresh bypasses cache and fetches fresh data."""
         mock_fetch.return_value = sample_prices
@@ -127,9 +96,7 @@ class TestPrices:
         mock_fetch.assert_called_once_with("AAPL")
         mock_save.assert_called_once()
 
-    @patch(
-        "app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock
-    )
+    @patch("app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
     def test_refresh_502_when_fetch_fails(self, mock_fetch):
         """POST /prices/{ticker}/refresh returns 502 when upstream fails."""
         mock_fetch.return_value = []
@@ -139,7 +106,6 @@ class TestPrices:
 
 
 # ---- Pipeline Webhook ----
-
 
 class TestPipelineWebhook:
     def test_pipeline_complete_returns_client_count(self):
@@ -151,25 +117,18 @@ class TestPipelineWebhook:
 
 # ---- Analyze Endpoint ----
 
-
 class TestAnalyze:
     @patch("app.routers.analysis.llm_service.analyze", new_callable=AsyncMock)
     @patch("app.routers.analysis.storage.load_prices")
     def test_analyze_returns_summary(self, mock_load, mock_analyze, sample_prices):
         """Full round-trip: load data → call LLM → return analysis."""
         mock_load.return_value = sample_prices
-        mock_analyze.return_value = (
-            "AAPL is trending upward with strong momentum.",
-            "anthropic",
-        )
+        mock_analyze.return_value = ("AAPL is trending upward with strong momentum.", "anthropic")
 
-        response = client.post(
-            "/analyze",
-            json={
-                "ticker": "AAPL",
-                "question": "What is the trend?",
-            },
-        )
+        response = client.post("/analyze", json={
+            "ticker": "AAPL",
+            "question": "What is the trend?",
+        })
 
         assert response.status_code == 200
         data = response.json()
@@ -189,9 +148,7 @@ class TestAnalyze:
         assert response.status_code == 502
         assert "LLM provider error" in response.json()["detail"]
 
-    @patch(
-        "app.routers.analysis.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock
-    )
+    @patch("app.routers.analysis.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
     @patch("app.routers.analysis.storage.load_prices")
     def test_analyze_404_no_data(self, mock_load, mock_fetch):
         """Returns 404 when no price data is available."""
@@ -203,7 +160,6 @@ class TestAnalyze:
 
 
 # ---- LLM Service Unit Tests ----
-
 
 class TestLLMService:
     def test_format_price_context(self, sample_prices):
@@ -221,14 +177,8 @@ class TestLLMService:
         from app.services.llm_service import _format_price_context
 
         big_data = [
-            {
-                "date": f"2024-01-{i:02d}",
-                "open": 100,
-                "high": 101,
-                "low": 99,
-                "close": 100,
-                "volume": 1000,
-            }
+            {"date": f"2024-01-{i:02d}", "open": 100, "high": 101,
+             "low": 99, "close": 100, "volume": 1000}
             for i in range(1, 60)
         ]
         result = _format_price_context(big_data)
