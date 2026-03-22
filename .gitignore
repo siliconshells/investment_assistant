@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+
+# Environment
+.env
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/*.tfplan
+terraform/.terraform.lock.hcl
+
+# IDE
+.vscode/
+.idea/
+info.txt
+
+# OS
+.DS_Store

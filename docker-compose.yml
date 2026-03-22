@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  # --- FastAPI Application ---
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - APP_ENV=development
+    volumes:
+      - ./data:/app/data  # local storage fallback
+    depends_on:
+      - airflow-scheduler
+
+  # --- Airflow (lightweight standalone for dev) ---
+  airflow-webserver:
+    image: apache/airflow:2.10.0-python3.12
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./app:/opt/airflow/app       # share app code with DAGs
+      - airflow-data:/opt/airflow
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+        airflow db init &&
+        airflow users create --username admin --password admin
+          --firstname Admin --lastname User --role Admin --email admin@example.com &&
+        airflow webserver
+      "
+
+  airflow-scheduler:
+    image: apache/airflow:2.10.0-python3.12
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./app:/opt/airflow/app
+      - airflow-data:/opt/airflow
+    command: airflow scheduler
+    depends_on:
+      - airflow-webserver
+
+volumes:
+  airflow-data:

@@ -1,0 +1,24 @@
+# Core
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+pydantic==2.9.0
+pydantic-settings==2.5.0
+
+# AWS
+boto3==1.35.0
+
+# LLM clients
+openai==1.50.0
+anthropic==0.34.0
+
+# Airflow (installed separately in airflow container)
+# apache-airflow==2.10.0
+
+# Data
+httpx==0.27.0
+pandas==2.2.0
+
+# Testing
+pytest==8.3.0
+pytest-asyncio==0.24.0
+httpx==0.27.0
