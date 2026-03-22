@@ -48,3 +48,4 @@ class AnalysisResponse(BaseModel):
     llm_provider: str
     analysis: str
     price_points_used: int
+

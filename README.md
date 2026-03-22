@@ -24,7 +24,6 @@ A lightweight, end-to-end platform that demonstrates modern data engineering and
                                           └──────────────────┘
 ```
 
-
 ## Tech Stack Mapping
 
 | Skill Area | Implementation |
@@ -36,6 +35,28 @@ A lightweight, end-to-end platform that demonstrates modern data engineering and
 | CI/CD & Infrastructure-as-Code | `.github/workflows/ci.yml`, `terraform/` |
 | Cross-functional collaboration | Typed schemas, tests, OpenAPI docs at `/docs` |
 
+## Quick Start (Local)
+
+```bash
+# 1. Clone and configure
+cp .env.example .env          # add your API keys
+pip install -r requirements.txt
+
+# 2. Run locally
+uvicorn app.main:app --reload
+
+# 3. Or use Docker Compose (includes Airflow)
+docker compose up --build
+```
+
+## Deploy to AWS
+
+```bash
+cd terraform
+terraform init
+terraform plan -out=plan.tfplan
+terraform apply plan.tfplan
+```
 
 See `terraform/README.md` for full details.
 

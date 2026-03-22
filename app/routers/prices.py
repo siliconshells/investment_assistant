@@ -34,3 +34,28 @@ async def get_prices(ticker: str):
         ticker=ticker,
         prices=[PricePoint(**p) for p in prices],
     )
+
+
+@router.post("/prices/{ticker}/refresh", response_model=PriceResponse)
+async def refresh_prices(ticker: str):
+    """Force-fetch fresh data from Alpha Vantage, bypassing cache.
+
+    Used by the dashboard's manual refresh button and useful for
+    ad-hoc research on tickers outside the daily pipeline schedule.
+    """
+    ticker = ticker.upper()
+
+    prices = await stock_fetcher.fetch_daily_prices(ticker)
+    if not prices:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch fresh data for '{ticker}'",
+        )
+
+    storage.save_prices(ticker, prices)
+
+    return PriceResponse(
+        ticker=ticker,
+        prices=[PricePoint(**p) for p in prices],
+        source="alpha_vantage (refreshed)",
+    )

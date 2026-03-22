@@ -81,6 +81,39 @@ class TestPrices:
         response = client.get("/prices/ZZZZZ")
         assert response.status_code == 404
 
+    @patch("app.routers.prices.storage.save_prices")
+    @patch("app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
+    def test_refresh_forces_fresh_fetch(self, mock_fetch, mock_save, sample_prices):
+        """POST /prices/{ticker}/refresh bypasses cache and fetches fresh data."""
+        mock_fetch.return_value = sample_prices
+
+        response = client.post("/prices/AAPL/refresh")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ticker"] == "AAPL"
+        assert "refreshed" in data["source"]
+        mock_fetch.assert_called_once_with("AAPL")
+        mock_save.assert_called_once()
+
+    @patch("app.routers.prices.stock_fetcher.fetch_daily_prices", new_callable=AsyncMock)
+    def test_refresh_502_when_fetch_fails(self, mock_fetch):
+        """POST /prices/{ticker}/refresh returns 502 when upstream fails."""
+        mock_fetch.return_value = []
+
+        response = client.post("/prices/NVDA/refresh")
+        assert response.status_code == 502
+
+
+# ---- Pipeline Webhook ----
+
+class TestPipelineWebhook:
+    def test_pipeline_complete_returns_client_count(self):
+        """POST /pipeline/complete succeeds even with no SSE clients."""
+        response = client.post("/pipeline/complete")
+        assert response.status_code == 200
+        assert "notified_clients" in response.json()
+
 
 # ---- Analyze Endpoint ----
 

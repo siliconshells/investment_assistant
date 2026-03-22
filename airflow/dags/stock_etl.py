@@ -1,11 +1,13 @@
-"""Daily Stock Price ETL DAG.
+"""Intraday Stock Price ETL DAG.
 
-Orchestrates the daily pipeline:
+Orchestrates the pipeline every 3 hours during US market hours:
   1. Fetch prices from Alpha Vantage for a watchlist of tickers
   2. Validate the data (schema + freshness checks)
   3. Store structured JSON to S3 (or local filesystem in dev)
+  4. Notify the API server so connected dashboards auto-refresh
 
-Schedule: daily at 6:30 PM ET (after US market close).
+Schedule: 9:30, 12:30, 3:30, 6:30 ET — weekdays only.
+The 6:30 run captures the final closing prices after market close.
 """
 
 from datetime import datetime, timedelta
@@ -15,6 +17,9 @@ from airflow.operators.python import PythonOperator
 
 # -- Watchlist (easily extended by research team) --
 TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
+
+# -- API server URL (override via Airflow Variable in production) --
+API_BASE_URL = "http://api:8000"
 
 
 default_args = {
@@ -58,15 +63,32 @@ def validate_data(ticker: str, **kwargs):
     return f"Validation passed for {ticker}: {len(prices)} points, latest={latest}"
 
 
+def notify_dashboard(**kwargs):
+    """Hit the API webhook so connected dashboards auto-refresh via SSE."""
+    import requests
+
+    try:
+        resp = requests.post(f"{API_BASE_URL}/pipeline/complete", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        return f"Notified {data.get('notified_clients', 0)} dashboard clients"
+    except Exception as e:
+        # Non-fatal — data is already stored, notification is best-effort
+        print(f"Dashboard notification failed (non-fatal): {e}")
+        return "Notification skipped"
+
+
 with DAG(
-    dag_id="daily_stock_etl",
+    dag_id="intraday_stock_etl",
     default_args=default_args,
-    description="Fetch, validate, and store daily stock prices",
-    schedule_interval="30 18 * * 1-5",  # 6:30 PM ET, weekdays
+    description="Fetch, validate, and store stock prices every 3h during market hours",
+    schedule_interval="30 9,12,15,18 * * 1-5",  # 9:30, 12:30, 3:30, 6:30 ET weekdays
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["investment", "etl", "production"],
+    tags=["investment", "etl", "intraday", "production"],
 ) as dag:
+
+    all_validate_tasks = []
 
     for ticker in TICKERS:
         fetch_task = PythonOperator(
@@ -82,3 +104,13 @@ with DAG(
         )
 
         fetch_task >> validate_task
+        all_validate_tasks.append(validate_task)
+
+    # After ALL tickers are fetched and validated, notify dashboards
+    notify_task = PythonOperator(
+        task_id="notify_dashboard",
+        python_callable=notify_dashboard,
+        trigger_rule="all_done",  # run even if some tickers failed
+    )
+
+    all_validate_tasks >> notify_task
