@@ -32,16 +32,24 @@ function gen(base, vol, trend) {
 const MOCK_PRICES = { AAPL: gen(178, 12, 0.3), NVDA: gen(420, 30, 1.2), MSFT: gen(410, 15, 0.4) };
 const TICKERS = Object.keys(MOCK_PRICES);
 
-const PIPELINE = [
-  { id: 1, ticker: "AAPL", stage: "fetch", status: "success", dur: "4.2s", time: "18:30" },
-  { id: 2, ticker: "AAPL", stage: "validate", status: "success", dur: "0.8s", time: "18:31" },
-  { id: 3, ticker: "NVDA", stage: "fetch", status: "success", dur: "3.9s", time: "18:30" },
-  { id: 4, ticker: "NVDA", stage: "validate", status: "success", dur: "0.6s", time: "18:31" },
-  { id: 5, ticker: "MSFT", stage: "fetch", status: "running", dur: "—", time: "18:32" },
-  { id: 6, ticker: "MSFT", stage: "validate", status: "pending", dur: "—", time: "—" },
-  { id: 7, ticker: "GOOGL", stage: "fetch", status: "failed", dur: "12.1s", time: "18:30" },
-  { id: 8, ticker: "GOOGL", stage: "validate", status: "pending", dur: "—", time: "—" },
-];
+function pipelineStatusToRows(tickers) {
+  let id = 1;
+  const rows = [];
+  for (const t of tickers) {
+    const time = t.last_data_date ? t.last_data_date.slice(5).replace("-", "/") : "—";
+    let fetchStatus, validateStatus;
+    if (t.status === "healthy") {
+      fetchStatus = "success"; validateStatus = "success";
+    } else if (t.status === "stale") {
+      fetchStatus = "success"; validateStatus = "failed";
+    } else {
+      fetchStatus = "failed"; validateStatus = "pending";
+    }
+    rows.push({ id: id++, ticker: t.ticker, stage: "fetch", status: fetchStatus, dur: "—", time });
+    rows.push({ id: id++, ticker: t.ticker, stage: "validate", status: validateStatus, dur: "—", time: validateStatus === "pending" ? "—" : time });
+  }
+  return rows;
+}
 
 function buildAnalysis(ticker, prices) {
   const latest = prices[prices.length - 1];
@@ -81,7 +89,6 @@ const Dot = ({ status }) => {
   return (
     <span style={{ position: "relative", display: "inline-flex", width: 7, height: 7 }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: col, display: "block" }} />
-      {status === "running" && <span style={{ position: "absolute", inset: -3, borderRadius: "50%", border: `1.5px solid ${col}`, opacity: 0.4, animation: "ping 1.5s ease-out infinite" }} />}
     </span>
   );
 };
@@ -131,8 +138,16 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [sseStatus, setSseStatus] = useState("disconnected"); // disconnected | connected | error
   const [lastPipelineEvent, setLastPipelineEvent] = useState(null);
+  const [pipelineRows, setPipelineRows] = useState([]);
   const chatEnd = useRef(null);
   const sseRef = useRef(null);
+
+  const fetchPipelineStatus = useCallback(() => {
+    fetch(`${API}/pipeline/status`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.tickers) setPipelineRows(pipelineStatusToRows(d.tickers)); })
+      .catch(() => {});
+  }, []);
 
   // ── SSE connection to /events/pipeline ──
   useEffect(() => {
@@ -143,11 +158,13 @@ export default function Dashboard() {
 
       es.addEventListener("connected", () => {
         setSseStatus("connected");
+        fetchPipelineStatus();
       });
 
       es.addEventListener("pipeline_complete", (e) => {
         const data = JSON.parse(e.data);
         setLastPipelineEvent(data.completed_at);
+        fetchPipelineStatus();
 
         // Auto-refresh: reload all ticker data
         for (const t of TICKERS) {
@@ -171,8 +188,9 @@ export default function Dashboard() {
     }
 
     connect();
+    fetchPipelineStatus(); // also fetch on mount in case SSE is slow
     return () => { if (sseRef.current) sseRef.current.close(); };
-  }, []);
+  }, [fetchPipelineStatus]);
 
   // Recompute analysis when ticker or data changes
   useEffect(() => {
@@ -213,8 +231,9 @@ export default function Dashboard() {
         return { ...prev, [ticker]: gen(...args) };
       });
     }
+    fetchPipelineStatus();
     setRefreshing(false);
-  }, [ticker]);
+  }, [ticker, fetchPipelineStatus]);
 
   // ── AI Analysis ──
   const runAnalysis = () => {
@@ -244,7 +263,7 @@ export default function Dashboard() {
     }, 800);
   };
 
-  const okCount = PIPELINE.filter(t => t.status === "success").length;
+  const okCount = pipelineRows.filter(t => t.status === "success").length;
   const sseColors = { connected: C.green, disconnected: C.textDim, error: C.amber };
 
   return (
@@ -293,7 +312,7 @@ export default function Dashboard() {
           {/* SSE status indicator */}
           <div className="badge" style={{ background: sseStatus === "connected" ? C.greenSoft : C.amberSoft, color: sseColors[sseStatus] }}>
             <Radio size={10} />
-            {sseStatus === "connected" ? "Live updates" : sseStatus === "error" ? "Reconnecting" : "Connecting"}
+            {sseStatus === "connected" ? "Updates as at yesterday!" : sseStatus === "error" ? "Reconnecting" : "Connecting"}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}><Dot status="success" /><span style={{ fontSize: 11.5, color: C.textMuted, fontWeight: 500 }}>API</span></div>
         </div>
@@ -334,7 +353,7 @@ export default function Dashboard() {
           <Stat label="Period High" value={hi.toFixed(2)} icon={TrendingUp} color={C.green} />
           <Stat label="Period Low" value={lo.toFixed(2)} icon={TrendingDown} color={C.red} />
           <Stat label="Avg Volume" value={`${(avgV / 1e6).toFixed(1)}M`} icon={Activity} color={C.accent} />
-          <Stat label="Pipeline" value={`${okCount}/${PIPELINE.length}`} sub="tasks completed" icon={Cpu} color={okCount === PIPELINE.length ? C.green : C.amber} />
+          <Stat label="Pipeline" value={`${okCount}/${pipelineRows.length}`} sub="tasks completed" icon={Cpu} color={okCount === pipelineRows.length ? C.green : C.amber} />
         </div>
 
         {/* ─── Main grid ─── */}
@@ -380,7 +399,6 @@ export default function Dashboard() {
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
                 <Zap size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: .5 }}>AI Analysis</span>
-                {analysis && <span style={{ fontSize: 10.5, color: C.textDim, marginLeft: "auto", fontFamily: "'Source Code Pro', monospace" }}>{analysis.provider} · {analysis.dataPoints} pts</span>}
               </div>
               {analyzing ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.textMuted, fontSize: 13 }}>
@@ -432,7 +450,7 @@ export default function Dashboard() {
                 <span style={{ marginLeft: "auto", fontSize: 10.5, fontFamily: "'Source Code Pro', monospace", color: C.textDim }}>intraday_stock_etl</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                {PIPELINE.map(t => (
+                {pipelineRows.map(t => (
                   <div key={t.id} style={{
                     display: "grid", gridTemplateColumns: "7px 50px 64px 1fr 46px", alignItems: "center", gap: 8,
                     padding: "5px 8px", borderRadius: 6, fontSize: 11.5, fontFamily: "'Source Code Pro', monospace",
@@ -453,6 +471,16 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ─── Footer notice ─── */}
+      <div style={{ margin: "0 26px 26px", padding: "14px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12 }}>
+        <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
+        <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
+          Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes.
+          For true intraday bars (5-min / 15-min / 60-min), I would switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices.
+          The pipeline architecture stays the same — only the fetcher service would change.
         </div>
       </div>
     </div>

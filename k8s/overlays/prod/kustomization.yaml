@@ -5,20 +5,8 @@ resources:
   - ../../base
   - ingress.yaml
 
-# ECR image — set these from CI or via: kustomize edit set image
-# investment-api=123456789.dkr.ecr.us-east-1.amazonaws.com/investment-assistant-api:abc123
+# 1. Real ECR URL to prevent ImagePullBackOff
 images:
   - name: investment-api
-    newName: REPLACE_WITH_ECR_URL/investment-assistant-api
+    newName: 620173787208.dkr.ecr.us-east-1.amazonaws.com/investment-assistant-api
     newTag: latest
-
-# Patch IRSA annotation onto the service account
-patches:
-  - target:
-      kind: ServiceAccount
-      name: investment-api-sa
-    patch: |
-      - op: add
-        path: /metadata/annotations
-        value:
-          eks.amazonaws.com/role-arn: REPLACE_WITH_ROLE_ARN

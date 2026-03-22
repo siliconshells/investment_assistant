@@ -19,7 +19,7 @@ spec:
       serviceAccountName: investment-api-sa
       containers:
         - name: api
-          image: 620173787208.dkr.ecr.us-east-1.amazonaws.com/investment-assistant-api:latest  # overridden by Kustomize overlay
+          image: 620173787208.dkr.ecr.us-east-1.amazonaws.com/investment-assistant-api:latest
           ports:
             - containerPort: 8000
           envFrom:
@@ -27,6 +27,11 @@ spec:
                 name: investment-api-config
             - secretRef:
                 name: investment-api-secrets
+          env:
+            - name: AWS_ROLE_ARN
+              value: "arn:aws:iam::620173787208:role/eks-investment-s3"
+            - name: AWS_WEB_IDENTITY_TOKEN_FILE
+              value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
           resources:
             requests:
               memory: "256Mi"
@@ -49,6 +54,17 @@ spec:
           volumeMounts:
             - name: airflow-data
               mountPath: /opt/airflow
+            - name: aws-iam-token
+              mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
+              readOnly: true      
       volumes:
+        - name: aws-iam-token
+          projected:
+            defaultMode: 420
+            sources:
+            - serviceAccountToken:
+                audience: sts.amazonaws.com
+                expirationSeconds: 86400
+                path: token
         - name: airflow-data
           emptyDir: {} # This keeps data alive as long as the pod is scheduled on the node
