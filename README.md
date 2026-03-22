@@ -52,13 +52,20 @@ docker compose up --build
 ## Deploy to AWS
 
 ```bash
+# 1. Provision infrastructure
 cd terraform
 terraform init
 terraform plan -out=plan.tfplan
 terraform apply plan.tfplan
+
+# 2. Configure kubectl
+$(terraform output -raw configure_kubectl)
+
+# 3. Deploy to Kubernetes
+kubectl apply -k ../k8s/overlays/prod
 ```
 
-See `terraform/README.md` for full details.
+See `terraform/README.md` and `k8s/README.md` for full details.
 
 ## API Endpoints
 
@@ -66,7 +73,11 @@ See `terraform/README.md` for full details.
 |--------|------|-------------|
 | GET | `/health` | Health check |
 | GET | `/prices/{ticker}` | Get stored price data for a ticker |
+| POST | `/prices/{ticker}/refresh` | Force-fetch fresh data from Alpha Vantage |
 | POST | `/analyze` | Send ticker + timeframe, get LLM-generated summary |
+| GET | `/pipeline/status` | Pipeline health derived from data freshness |
+| POST | `/pipeline/complete` | Webhook called by Airflow to notify dashboards |
+| GET | `/events/pipeline` | SSE stream — dashboards auto-refresh on pipeline events |
 | GET | `/docs` | Interactive Swagger UI |
 
 ## Running Tests
@@ -79,14 +90,18 @@ pytest tests/ -v
 
 ```
 ai-investment-assistant/
-├── airflow/dags/          # Airflow DAG for daily stock ETL
+├── airflow/dags/          # Airflow DAG for intraday stock ETL
 ├── app/
-│   ├── main.py            # FastAPI entrypoint
+│   ├── main.py            # FastAPI entrypoint + SSE stream
 │   ├── config.py          # Settings via pydantic-settings
 │   ├── routers/           # API route handlers
 │   ├── services/          # LLM + S3 service layers
 │   └── models/            # Pydantic request/response schemas
-├── k8s/                   # Kubernetes deployment manifests
+├── dashboard/             # React frontend (Vite)
+│   └── src/Dashboard.jsx  # Main dashboard component
+├── k8s/                   # Kubernetes (Kustomize)
+│   ├── base/              # Shared manifests — valid YAML, no template vars
+│   └── overlays/          # dev (1 replica) and prod (ECR, IRSA, ALB)
 ├── terraform/             # AWS infrastructure as code
 ├── tests/                 # Pytest suite
 ├── .github/workflows/     # CI/CD pipeline
