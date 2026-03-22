@@ -19,7 +19,7 @@ spec:
       serviceAccountName: investment-api-sa
       containers:
         - name: api
-          image: investment-api:latest  # overridden by Kustomize overlay
+          image: 620173787208.dkr.ecr.us-east-1.amazonaws.com/investment-assistant-api:latest  # overridden by Kustomize overlay
           ports:
             - containerPort: 8000
           envFrom:
@@ -46,3 +46,9 @@ spec:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 10
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /opt/airflow
+      volumes:
+        - name: airflow-data
+          emptyDir: {} # This keeps data alive as long as the pod is scheduled on the node

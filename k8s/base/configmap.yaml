@@ -9,3 +9,8 @@ data:
   AWS_REGION: "us-east-1"
   S3_BUCKET_NAME: "investment-assistant-data"
   LLM_PROVIDER: "openai"
+  # --- Airflow Core Settings ---
+  AIRFLOW__CORE__EXECUTOR: "SequentialExecutor" # SQLite requires SequentialExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__FERNET_KEY: "GenerateAFernetKeyAndPutItHere"
+
