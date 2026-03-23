@@ -25,7 +25,7 @@ SYSTEM_PROMPT = (
 def _format_price_context(prices: list[dict]) -> str:
     """Convert price data into a compact text table for the LLM."""
     lines = ["Date       | Open   | High   | Low    | Close  | Volume"]
-    for p in prices[-30:]:  # cap at 30 days to control token usage
+    for p in prices:
         lines.append(
             f"{p['date']} | {p['open']:>6} | {p['high']:>6} | "
             f"{p['low']:>6} | {p['close']:>6} | {p['volume']}"
@@ -51,7 +51,7 @@ async def analyze_with_openai(ticker: str, prices: list[dict], question: str) ->
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
         ],
-        max_tokens=512,
+        max_tokens=1024,
         temperature=0.3,
     )
     return response.choices[0].message.content
@@ -71,7 +71,7 @@ async def analyze_with_anthropic(ticker: str, prices: list[dict], question: str)
 
     response = await client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=512,
+        max_tokens=1024,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_msg}],
     )
