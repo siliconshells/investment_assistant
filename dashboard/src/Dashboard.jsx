@@ -6,7 +6,7 @@ import {
 import {
   TrendingUp, TrendingDown, Activity, MessageSquare,
   Send, Database, Cpu, Zap, BarChart3, ArrowUpRight,
-  ArrowDownRight, Radio,
+  ArrowDownRight, Radio, X, Info,
 } from "lucide-react";
 
 // In dev, Vite proxy rewrites /api/* → localhost:8000/*.
@@ -121,6 +121,7 @@ export default function Dashboard() {
   const [msgs, setMsgs] = useState([{ role: "system", text: "Research assistant ready. Ask anything about the portfolio." }]);
   const [input, setInput] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const watchlistRef = useRef([]);
@@ -243,30 +244,33 @@ export default function Dashboard() {
   };
 
   // ── Chat ──
-  const sendChat = () => {
+  const sendChat = async () => {
     if (!input.trim()) return;
     const q = input.trim();
-    setMsgs(m => [...m, { role: "user", text: q }]);
+    setMsgs(m => [...m, { role: "user", text: q }, { role: "assistant", text: "…" }]);
     setInput("");
-    setTimeout(() => {
-      let r = `On ${ticker}: `;
-      const ql = q.toLowerCase();
-      if (ql.includes("support")) r += `Support at ${lo.toFixed(2)} with intermediate support near ${(latest.close * 0.98).toFixed(2)}.`;
-      else if (ql.includes("resist")) r += `Resistance at ${hi.toFixed(2)}. A break above on heavy volume confirms the uptrend.`;
-      else if (ql.includes("buy") || ql.includes("sell")) r += `I provide analysis, not recommendations. Currently ${up ? "positive momentum" : "under pressure"} at ${chgPct}%.`;
-      else if (ql.includes("volume")) r += `Avg volume ${(avgV / 1e6).toFixed(1)}M. Latest: ${(latest.volume / 1e6).toFixed(1)}M (${latest.volume > avgV ? "above" : "below"} average).`;
-      else r += `Closed ${latest.close} (${up ? "+" : ""}${chg}, ${chgPct}%). Trading ${latest.close > (hi + lo) / 2 ? "above" : "below"} range midpoint.`;
-      setMsgs(m => [...m, { role: "assistant", text: r }]);
-    }, 800);
+    try {
+      const res = await fetch(`${API}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker, question: q }),
+      });
+      const data = await res.json();
+      const reply = res.ok ? data.analysis : (data.detail || "Something went wrong.");
+      setMsgs(m => [...m.slice(0, -1), { role: "assistant", text: reply }]);
+    } catch {
+      setMsgs(m => [...m.slice(0, -1), { role: "assistant", text: "Could not reach the analysis service." }]);
+    }
   };
 
   const okCount = pipelineRows.filter(t => t.status === "success").length;
   const sseColors = { connected: C.green, disconnected: C.textDim, error: C.amber };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'DM Sans', -apple-system, sans-serif" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg, color: C.text, fontFamily: "'DM Sans', -apple-system, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;600;700&display=swap');
+        html,body,#root{height:100%;overflow:hidden}
         *{box-sizing:border-box;margin:0;padding:0}
         ::-webkit-scrollbar{width:4px}
         ::-webkit-scrollbar-track{background:transparent}
@@ -315,7 +319,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div style={{ padding: "22px 26px", display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ flex: 1, minHeight: 0, padding: "14px 26px 0", display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ─── Ticker bar with refresh and last-updated ─── */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {watchlist.map(t => <button key={t} className={`tk ${t === ticker ? "on" : ""}`} onClick={() => setTicker(t)}>{t}</button>)}
@@ -348,9 +352,9 @@ export default function Dashboard() {
         </div>
 
         {/* ─── Main grid ─── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 370px", gap: 14 }}>
+        <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "1fr 370px", gap: 14 }}>
           {/* Chart + analysis */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 14, overflow: "hidden", minHeight: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Price — {ticker}</span>
               <button className="ab" onClick={runAnalysis} disabled={analyzing}>
@@ -386,7 +390,7 @@ export default function Dashboard() {
             </div>
 
             {/* Analysis — always visible, pre-loaded on mount */}
-            <div className="anim" style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+            <div className="anim" style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, flex: 1, minHeight: 0, overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
                 <Zap size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: .5 }}>AI Analysis</span>
@@ -406,9 +410,9 @@ export default function Dashboard() {
           </div>
 
           {/* ─── Right column ─── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0 }}>
             {/* Chat */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", height: 340 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", flex: "0 0 auto", height: 280 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <MessageSquare size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Research Chat</span>
@@ -434,7 +438,7 @@ export default function Dashboard() {
             </div>
 
             {/* Pipeline */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1, minHeight: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <Database size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
@@ -466,14 +470,136 @@ export default function Dashboard() {
       </div>
 
       {/* ─── Footer notice ─── */}
-      <div style={{ margin: "0 26px 10px", padding: "14px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12 }}>
-        <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
-        <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
-          Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes.
-          For true intraday bars (5-min / 15-min / 60-min), I would switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices.
-          The pipeline architecture stays the same — only the fetcher service would change.
+      <div style={{ margin: "0 26px 6px", padding: "8px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
+          <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
+            Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes.
+            For true intraday bars (5-min / 15-min / 60-min), I would switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices.
+            The pipeline architecture stays the same — only the fetcher service would change.
+          </div>
         </div>
+        <button onClick={() => setShowInfo(true)} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 7, background: C.accent, color: "#fff", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 2px 10px rgba(37,99,235,0.3)", whiteSpace: "nowrap" }}>
+          <Info size={15} /> About this project
+        </button>
       </div>
+
+      {/* ─── Project info modal ─── */}
+      {showInfo && (
+        <div onClick={() => setShowInfo(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 660, width: "90%", position: "relative", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
+            <button onClick={() => setShowInfo(false)} style={{ position: "absolute", top: 16, right: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <X size={15} color={C.textMuted} />
+            </button>
+
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <BarChart3 size={18} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.text }}>AI Investment Research Assistant</div>
+                <div style={{ fontSize: 11.5, color: C.textDim }}>End-to-end data engineering &amp; AI infrastructure</div>
+              </div>
+            </div>
+
+            {/* Link buttons */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+              <a href="https://www.leonardeshun.com" target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none", fontFamily: "'DM Sans', sans-serif" }}>
+                🌐 My Website
+              </a>
+              <a href="https://github.com/siliconshells/investment_assistant" target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`, color: C.text, fontWeight: 700, fontSize: 13, textDecoration: "none", fontFamily: "'DM Sans', sans-serif" }}>
+                ⌥ GitHub Repo
+              </a>
+            </div>
+
+            {/* Scrollable content */}
+            <div style={{ overflowY: "auto", maxHeight: "62vh", display: "flex", flexDirection: "column", gap: 18, fontSize: 13.5, color: C.textMid, lineHeight: 1.75 }}>
+              <p>An end-to-end platform that automates the collection, storage, and AI-powered analysis of stock market data for internal research teams. The system runs an intraday data pipeline via Airflow, exposes structured data and LLM-generated analysis through a FastAPI backend, and presents everything through this React dashboard — all containerized with Docker, orchestrated on Kubernetes, provisioned via Terraform on AWS, and deployed through a GitHub Actions CI/CD pipeline.</p>
+              <img src="/diagram2.png" alt="Architecture diagram" style={{ width: "100%", borderRadius: 10, border: `1px solid ${C.border}` }} />
+
+              {[
+                {
+                  title: "1. Automated Data Pipelines & Orchestration (Airflow)",
+                  body: <>
+                    <p>The Airflow DAG (<code>intraday_stock_etl</code>) runs every 3 hours during US market hours — 9:30 AM, 12:30 PM, 3:30 PM, and 6:30 PM ET, weekdays only. The 6:30 run captures final closing prices after market close.</p>
+                    <p style={{ marginTop: 8 }}>For each ticker in the watchlist (AAPL, MSFT, GOOGL, AMZN, NVDA), the DAG executes three stages:</p>
+                    <ul style={{ paddingLeft: 18, marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                      <li><strong>Fetch:</strong> Pulls daily price data from Alpha Vantage and writes structured JSON to S3.</li>
+                      <li><strong>Validate:</strong> Verifies data exists, is non-empty, and is no more than 5 days old.</li>
+                      <li><strong>Notify:</strong> POSTs to <code>/pipeline/complete</code>, broadcasting an SSE event to all connected dashboards. Uses <code>trigger_rule="all_done"</code> so it fires even if individual tickers failed.</li>
+                    </ul>
+                  </>
+                },
+                {
+                  title: "2. Containerization & Deployment (Docker + Kubernetes on AWS)",
+                  body: <>
+                    <p><strong>Docker:</strong> A three-stage build — Stage 1 builds the React dashboard with Vite; Stage 2 installs Python dependencies; Stage 3 assembles the final slim image. The result is a single container serving both the API and frontend, running as a non-root user with a healthcheck against <code>/health</code>.</p>
+                    <p style={{ marginTop: 8 }}><strong>Kubernetes:</strong> Kustomize base/overlay structure — <code>k8s/base/</code> contains standalone YAML (Deployment, Service, ConfigMap, ServiceAccount, Namespace). <code>overlays/prod/</code> adds ECR image reference, IRSA annotation, and an internet-facing ALB Ingress. The Deployment includes resource requests/limits, liveness probes every 30s, and readiness probes every 10s.</p>
+                  </>
+                },
+                {
+                  title: "3. RESTful Backend APIs (FastAPI)",
+                  body: <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
+                    <tbody>
+                      {[
+                        ["GET", "/health", "Health check — returns environment and LLM provider"],
+                        ["GET", "/prices/{ticker}", "Returns stored price data; auto-fetches on cache miss"],
+                        ["POST", "/prices/{ticker}/refresh", "Force-fetches fresh data, bypassing cache"],
+                        ["POST", "/analyze", "Sends price data to LLM, returns plain-English analysis"],
+                        ["GET", "/watchlist", "Returns the list of tracked tickers"],
+                        ["GET", "/pipeline/status", "Pipeline health derived from data freshness"],
+                        ["POST", "/pipeline/complete", "Airflow webhook — broadcasts SSE to dashboards"],
+                        ["GET", "/events/pipeline", "SSE stream for real-time dashboard notifications"],
+                        ["GET", "/docs", "Auto-generated Swagger UI"],
+                      ].map(([method, path, desc]) => (
+                        <tr key={path} style={{ borderBottom: `1px solid ${C.border}` }}>
+                          <td style={{ padding: "5px 10px 5px 0", fontFamily: "'Source Code Pro', monospace", fontSize: 11, color: C.accent, fontWeight: 700 }}>{method}</td>
+                          <td style={{ padding: "5px 10px 5px 0", fontFamily: "'Source Code Pro', monospace", fontSize: 11.5, color: C.text, whiteSpace: "nowrap" }}>{path}</td>
+                          <td style={{ padding: "5px 0", color: C.textMuted, fontSize: 12 }}>{desc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                },
+                {
+                  title: "4. LLM API Integration (OpenAI / Anthropic)",
+                  body: <>
+                    <p>A single <code>analyze(ticker, prices, question)</code> function abstracts provider differences. The active provider is set via the <code>LLM_PROVIDER</code> env var.</p>
+                    <ul style={{ paddingLeft: 18, marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                      <li><strong>OpenAI:</strong> <code>gpt-4o-mini</code> via AsyncOpenAI, <code>max_tokens=512</code>, <code>temperature=0.3</code></li>
+                      <li><strong>Anthropic:</strong> <code>claude-sonnet-4-20250514</code> via AsyncAnthropic, same token limit</li>
+                    </ul>
+                    <p style={{ marginTop: 8 }}>Both clients are async so LLM calls don't block the FastAPI event loop. The price table is capped at the most recent 30 data points to keep token usage predictable.</p>
+                  </>
+                },
+                {
+                  title: "5. CI/CD & Infrastructure-as-Code",
+                  body: <>
+                    <p><strong>GitHub Actions</strong> pipeline has four stages: Test (every push/PR) → Build (main branch, pushes to ECR with commit SHA tag) → Deploy (updates EKS via kustomize + kubectl rollout) → Terraform Plan (posts diff as PR comment).</p>
+                    <p style={{ marginTop: 8 }}><strong>Terraform</strong> provisions: VPC (2 AZs, public/private subnets), EKS managed node group (<code>t3.medium</code>), versioned &amp; encrypted S3 bucket, ECR with lifecycle policy (last 10 images), and an IRSA IAM role with least-privilege S3 access for the API pods.</p>
+                  </>
+                },
+                {
+                  title: "6. Cross-Functional Collaboration",
+                  body: <ul style={{ paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <li><strong>Typed Pydantic schemas</strong> serve as a runtime-enforced contract between the backend and consuming teams</li>
+                    <li><strong>Auto-generated OpenAPI docs</strong> at <code>/docs</code> give research teams interactive documentation without reading code</li>
+                    <li><strong>This dashboard</strong> translates raw API data into price charts, AI analysis, a chat interface, and pipeline health monitoring</li>
+                    <li><strong>Configurable watchlist</strong> in the Airflow DAG — analysts extend it by name, no pipeline code changes needed</li>
+                    <li><strong>Test suite</strong> with mocked external dependencies covers the full request-response cycle for every endpoint</li>
+                  </ul>
+                },
+              ].map(({ title, body }) => (
+                <div key={title}>
+                  <div style={{ fontWeight: 700, color: C.text, fontSize: 14, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${C.border}` }}>{title}</div>
+                  {body}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
