@@ -2,7 +2,7 @@
  
 An end-to-end platform that automates the collection, storage, and AI-powered analysis of stock market data for internal research teams. The system runs an intraday data pipeline via Airflow, exposes structured data and LLM-generated analysis through a FastAPI backend, and presents everything through a React dashboard — all containerized with Docker, orchestrated on Kubernetes, provisioned via Terraform on AWS, and deployed through a GitHub Actions CI/CD pipeline.
  
-![alt text](../diagram2.png)
+![alt text](diagram2.png)
 
 ### 1. Automated Data Pipelines and Workflow Orchestration (Airflow)
  

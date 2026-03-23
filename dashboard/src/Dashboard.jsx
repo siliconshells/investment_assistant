@@ -455,11 +455,11 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
             </div>
 
             {/* Pipeline */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1, minHeight: 0, overflow: "hidden", maxHeight: "50%" }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1, minHeight: 0, overflow: "hidden", maxHeight: "60%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <Database size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
-                <span style={{ marginLeft: "auto", fontSize: 10.5, fontFamily: "'Source Code Pro', monospace", color: C.textDim }}>intraday_stock_etl</span>
+                <span style={{ marginLeft: "auto", fontSize: 10.5, fontFamily: "'Source Code Pro', monospace", color: C.textDim }}></span> 
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {pipelineRows.map(t => (

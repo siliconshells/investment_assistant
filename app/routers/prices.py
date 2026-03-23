@@ -1,5 +1,6 @@
 """Routes for stock price data retrieval."""
 
+from datetime import date, timedelta
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import PricePoint, PriceResponse
@@ -8,27 +9,41 @@ from app.services import stock_fetcher, storage
 router = APIRouter(tags=["prices"])
 
 
+def _last_trading_day() -> date:
+    """Return the most recent trading day (Mon–Fri), excluding today."""
+    d = date.today() - timedelta(days=1)
+    while d.weekday() >= 5:  # 5=Saturday, 6=Sunday
+        d -= timedelta(days=1)
+    return d
+
+
 @router.get("/prices/{ticker}", response_model=PriceResponse)
 async def get_prices(ticker: str):
     """Return stored price data for a ticker.
 
-    If no stored data exists, fetches fresh data from Alpha Vantage
-    and persists it for future requests.
+    Fetches fresh data from Alpha Vantage if no data is stored or if
+    the stored data doesn't include the most recent trading day.
     """
     ticker = ticker.upper()
 
-    # Try stored data first
     prices = storage.load_prices(ticker)
 
-    if prices is None:
-        # Fetch on demand and store
-        prices = await stock_fetcher.fetch_daily_prices(ticker)
-        if not prices:
+    needs_fetch = prices is None
+    if prices:
+        latest_stored = date.fromisoformat(prices[-1]["date"])
+        needs_fetch = latest_stored < _last_trading_day()
+
+    if needs_fetch:
+        fresh = await stock_fetcher.fetch_daily_prices(ticker)
+        if fresh:
+            storage.save_prices(ticker, fresh)
+            prices = fresh
+        elif prices is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"No price data found for ticker '{ticker}'",
             )
-        storage.save_prices(ticker, prices)
+        # If fetch failed but we have stale data, return what we have
 
     return PriceResponse(
         ticker=ticker,
