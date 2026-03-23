@@ -234,13 +234,30 @@ export default function Dashboard() {
 
 
   // ── AI Analysis ──
-  const runAnalysis = () => {
+  const runAnalysis = async () => {
     setAnalyzing(true);
     setAnalysis(null);
-    setTimeout(() => {
-      setAnalysis(buildAnalysis(ticker, prices));
-      setAnalyzing(false);
-    }, 1800);
+    try {
+      const res = await fetch(`${API}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticker,
+          question: `Write a concise analysis in exactly this format — no extra commentary:
+
+{TICKER} Analysis — [one sentence: total gain/loss over the period, trend direction, consolidation price, avg daily volume]
+
+Key Levels: [resistance and support levels with context]
+
+Outlook: [forward-looking commentary on momentum, breakout levels, and potential entry zones]`,
+        }),
+      });
+      const data = await res.json();
+      setAnalysis({ text: res.ok ? data.analysis : (data.detail || "Analysis failed.") });
+    } catch {
+      setAnalysis({ text: "Could not reach the analysis service." });
+    }
+    setAnalyzing(false);
   };
 
   // ── Chat ──
@@ -319,7 +336,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div style={{ flex: 1, minHeight: 0, padding: "14px 26px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", padding: "14px 26px 0", display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ─── Ticker bar with refresh and last-updated ─── */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {watchlist.map(t => <button key={t} className={`tk ${t === ticker ? "on" : ""}`} onClick={() => setTicker(t)}>{t}</button>)}
@@ -470,7 +487,7 @@ export default function Dashboard() {
       </div>
 
       {/* ─── Footer notice ─── */}
-      <div style={{ margin: "0 26px 6px", padding: "8px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+      <div style={{ flexShrink: 0, margin: "0 26px 6px", padding: "8px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div>
           <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
           <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
@@ -487,7 +504,7 @@ export default function Dashboard() {
       {/* ─── Project info modal ─── */}
       {showInfo && (
         <div onClick={() => setShowInfo(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 660, width: "90%", position: "relative", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "36px 44px", maxWidth: 990, width: "92%", position: "relative", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
             <button onClick={() => setShowInfo(false)} style={{ position: "absolute", top: 16, right: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <X size={15} color={C.textMuted} />
             </button>
@@ -514,7 +531,7 @@ export default function Dashboard() {
             </div>
 
             {/* Scrollable content */}
-            <div style={{ overflowY: "auto", maxHeight: "62vh", display: "flex", flexDirection: "column", gap: 18, fontSize: 13.5, color: C.textMid, lineHeight: 1.75 }}>
+            <div style={{ overflowY: "auto", maxHeight: "72vh", display: "flex", flexDirection: "column", gap: 18, fontSize: 13.5, color: C.textMid, lineHeight: 1.75 }}>
               <p>An end-to-end platform that automates the collection, storage, and AI-powered analysis of stock market data for internal research teams. The system runs an intraday data pipeline via Airflow, exposes structured data and LLM-generated analysis through a FastAPI backend, and presents everything through this React dashboard — all containerized with Docker, orchestrated on Kubernetes, provisioned via Terraform on AWS, and deployed through a GitHub Actions CI/CD pipeline.</p>
               <img src="/diagram2.png" alt="Architecture diagram" style={{ width: "100%", borderRadius: 10, border: `1px solid ${C.border}` }} />
 
