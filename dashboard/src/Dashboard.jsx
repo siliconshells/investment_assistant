@@ -13,23 +13,6 @@ import {
 // In production, dashboard is served from FastAPI itself — no prefix needed.
 const API = import.meta.env.DEV ? "/api" : "";
 
-// ── Mock data generator ─────────────────────────────────────────────────────
-
-function gen(base, vol, trend) {
-  return Array.from({ length: 60 }, (_, i) => {
-    const p = base + Math.sin(i / 7) * vol + i * trend;
-    return {
-      date: new Date(2024, 7, 1 + i).toISOString().split("T")[0],
-      open: +(p + Math.random() * 3 - 1.5).toFixed(2),
-      high: +(p + Math.random() * 5 + 1).toFixed(2),
-      low: +(p - Math.random() * 5 - 1).toFixed(2),
-      close: +(p + Math.random() * 4 - 2).toFixed(2),
-      volume: Math.floor(40e6 + Math.random() * 50e6),
-    };
-  });
-}
-
-const MOCK_PRICES = { AAPL: gen(178, 12, 0.3), NVDA: gen(420, 30, 1.2), MSFT: gen(410, 15, 0.4) };
 
 function pipelineStatusToRows(tickers) {
   let id = 1;
@@ -95,8 +78,8 @@ const Dot = ({ status }) => {
 const Stat = ({ label, value, sub, icon: Icon, color = C.accent }) => {
   const bgMap = { [C.green]: C.greenSoft, [C.red]: C.redSoft, [C.amber]: C.amberSoft };
   return (
-    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 14 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: bgMap[color] || C.accentSoft }}>
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 18px", display: "flex", alignItems: "flex-start", gap: 14 }}>
+      <div style={{ width: 28, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: bgMap[color] || C.accentSoft }}>
         <Icon size={17} color={color} strokeWidth={2.2} />
       </div>
       <div>
@@ -129,11 +112,16 @@ const Tip = ({ active, payload }) => {
 
 export default function Dashboard() {
   const [ticker, setTicker] = useState("AAPL");
-  const [priceData, setPriceData] = useState(MOCK_PRICES);
+  const [priceData, setPriceData] = useState(() => {
+    try {
+      const stored = localStorage.getItem("priceData");
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
   const [msgs, setMsgs] = useState([{ role: "system", text: "Research assistant ready. Ask anything about the portfolio." }]);
   const [input, setInput] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState(() => buildAnalysis("AAPL", MOCK_PRICES["AAPL"]));
+  const [analysis, setAnalysis] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const watchlistRef = useRef([]);
   const [sseStatus, setSseStatus] = useState("disconnected"); // disconnected | connected | error
@@ -150,6 +138,20 @@ export default function Dashboard() {
           setWatchlist(d.tickers);
           watchlistRef.current = d.tickers;
           setTicker(d.tickers[0]);
+          for (const t of d.tickers) {
+            fetch(`${API}/prices/${t}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(p => {
+                if (p?.prices) {
+                  setPriceData(prev => {
+                    const next = { ...prev, [t]: p.prices };
+                    try { localStorage.setItem("priceData", JSON.stringify(next)); } catch {}
+                    return next;
+                  });
+                }
+              })
+              .catch(() => {});
+          }
         }
       })
       .catch(() => {});
@@ -185,7 +187,11 @@ export default function Dashboard() {
             .then(r => r.ok ? r.json() : null)
             .then(d => {
               if (d?.prices) {
-                setPriceData(prev => ({ ...prev, [t]: d.prices }));
+                setPriceData(prev => {
+                  const next = { ...prev, [t]: d.prices };
+                  try { localStorage.setItem("priceData", JSON.stringify(next)); } catch {}
+                  return next;
+                });
               }
             })
             .catch(() => {});
@@ -460,7 +466,7 @@ export default function Dashboard() {
       </div>
 
       {/* ─── Footer notice ─── */}
-      <div style={{ margin: "0 26px 26px", padding: "14px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12 }}>
+      <div style={{ margin: "0 26px 10px", padding: "14px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12 }}>
         <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
         <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
           Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes.
