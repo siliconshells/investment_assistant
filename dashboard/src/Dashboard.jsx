@@ -118,7 +118,7 @@ export default function Dashboard() {
       return stored ? JSON.parse(stored) : {};
     } catch { return {}; }
   });
-  const [msgs, setMsgs] = useState([{ role: "system", text: "Research assistant ready. Ask anything about the portfolio." }]);
+  const [msgs, setMsgs] = useState([{ role: "system", text: "Research assistant ready. Ask anything about the SELECTED portfolio." }]);
   const [input, setInput] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -429,7 +429,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
           {/* ─── Right column ─── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4, minHeight: 0 }}>
             {/* Chat */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", flex: 2, minHeight: 0 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", flex: "1 1 55%", minHeight: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <MessageSquare size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Research Chat</span>
@@ -455,7 +455,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
             </div>
 
             {/* Pipeline */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1, minHeight: 0, overflow: "hidden", maxHeight: "60%" }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: "1 1 45%", minHeight: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <Database size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
