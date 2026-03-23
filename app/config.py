@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # External data
     alpha_vantage_api_key: str = "demo"
+    alpha_vantage_free_api_key: str = ""
 
     model_config = {
         "env_file": ".env",

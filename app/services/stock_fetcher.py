@@ -1,4 +1,7 @@
-"""Stock price fetcher using Alpha Vantage (free tier).
+"""Stock price fetcher using Alpha Vantage.
+
+Tries the paid API key first. If that returns no data, falls back to
+the free API key. Returns both the prices and which tier was used.
 
 Used by both the Airflow DAG and the FastAPI app for on-demand fetches.
 """
@@ -14,17 +17,12 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://www.alphavantage.co/query"
 
 
-async def fetch_daily_prices(ticker: str) -> list[dict]:
-    """Fetch daily adjusted prices for a ticker.
-
-    Returns a list of dicts sorted by date ascending:
-        [{"date": "2024-01-02", "open": 150.0, ...}, ...]
-    """
-    settings = get_settings()
+async def _fetch_with_key(ticker: str, apikey: str) -> list[dict]:
+    """Attempt a fetch with the given API key. Returns empty list on failure."""
     params = {
         "function": "TIME_SERIES_DAILY",
         "symbol": ticker.upper(),
-        "apikey": settings.alpha_vantage_api_key,
+        "apikey": apikey,
         "outputsize": "compact",  # last 100 days
     }
 
@@ -53,3 +51,30 @@ async def fetch_daily_prices(ticker: str) -> list[dict]:
 
     logger.info("Fetched %d price points for %s", len(prices), ticker)
     return prices
+
+
+async def fetch_daily_prices(ticker: str) -> tuple[list[dict], str]:
+    """Fetch daily prices for a ticker.
+
+    Tries the paid key first, falls back to the free key if it fails.
+
+    Returns:
+        (prices, api_tier) where api_tier is "paid" or "free".
+        prices is an empty list if both keys fail.
+    """
+    settings = get_settings()
+
+    # Try paid key first
+    if settings.alpha_vantage_api_key and settings.alpha_vantage_api_key != "demo":
+        prices = await _fetch_with_key(ticker, settings.alpha_vantage_api_key)
+        if prices:
+            return prices, "paid"
+        logger.warning("Paid key returned no data for %s, trying free key", ticker)
+
+    # Fall back to free key
+    if settings.alpha_vantage_free_api_key:
+        prices = await _fetch_with_key(ticker, settings.alpha_vantage_free_api_key)
+        if prices:
+            return prices, "free"
+
+    return [], "free"

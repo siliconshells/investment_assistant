@@ -33,8 +33,9 @@ async def get_prices(ticker: str):
         latest_stored = date.fromisoformat(prices[-1]["date"])
         needs_fetch = latest_stored < _last_trading_day()
 
+    api_tier = "free"
     if needs_fetch:
-        fresh = await stock_fetcher.fetch_daily_prices(ticker)
+        fresh, api_tier = await stock_fetcher.fetch_daily_prices(ticker)
         if fresh:
             storage.save_prices(ticker, fresh)
             prices = fresh
@@ -48,6 +49,7 @@ async def get_prices(ticker: str):
     return PriceResponse(
         ticker=ticker,
         prices=[PricePoint(**p) for p in prices],
+        api_tier=api_tier,
     )
 
 
@@ -60,7 +62,7 @@ async def refresh_prices(ticker: str):
     """
     ticker = ticker.upper()
 
-    prices = await stock_fetcher.fetch_daily_prices(ticker)
+    prices, api_tier = await stock_fetcher.fetch_daily_prices(ticker)
     if not prices:
         raise HTTPException(
             status_code=502,
@@ -73,4 +75,5 @@ async def refresh_prices(ticker: str):
         ticker=ticker,
         prices=[PricePoint(**p) for p in prices],
         source="alpha_vantage (refreshed)",
+        api_tier=api_tier,
     )

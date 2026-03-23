@@ -30,3 +30,4 @@ terraform/.terraform.lock.hcl
 
 # OS
 .DS_Store
+info.txt

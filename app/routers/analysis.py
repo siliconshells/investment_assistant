@@ -20,7 +20,7 @@ async def analyze_ticker(req: AnalyzeRequest):
     # Load or fetch prices
     prices = storage.load_prices(ticker)
     if prices is None:
-        prices = await stock_fetcher.fetch_daily_prices(ticker)
+        prices, _ = await stock_fetcher.fetch_daily_prices(ticker)
         if not prices:
             raise HTTPException(
                 status_code=404,

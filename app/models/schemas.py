@@ -41,6 +41,7 @@ class PriceResponse(BaseModel):
     ticker: str
     prices: list[PricePoint]
     source: str = "alpha_vantage"
+    api_tier: str = "free"
 
 
 class AnalysisResponse(BaseModel):

@@ -124,6 +124,7 @@ export default function Dashboard() {
   const [showInfo, setShowInfo] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
+  const [apiTier, setApiTier] = useState("free");
   const watchlistRef = useRef([]);
   const [sseStatus, setSseStatus] = useState("disconnected"); // disconnected | connected | error
   const [lastPipelineEvent, setLastPipelineEvent] = useState(null);
@@ -144,6 +145,7 @@ export default function Dashboard() {
               .then(r => r.ok ? r.json() : null)
               .then(p => {
                 if (p?.prices) {
+                  if (p.api_tier) setApiTier(p.api_tier);
                   setPriceData(prev => {
                     const next = { ...prev, [t]: p.prices };
                     try { localStorage.setItem("priceData", JSON.stringify(next)); } catch {}
@@ -330,7 +332,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
           {/* SSE status indicator */}
           <div className="badge" style={{ background: sseStatus === "connected" ? C.greenSoft : C.amberSoft, color: sseColors[sseStatus] }}>
             <Radio size={10} />
-            {sseStatus === "connected" ? "Updates as at yesterday!" : sseStatus === "error" ? "Reconnecting" : "Connecting"}
+            {sseStatus === "connected" ? "Updates as at the most recent past trading day!" : sseStatus === "error" ? "Reconnecting" : "Connecting"}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}><Dot status="success" /><span style={{ fontSize: 11.5, color: C.textMuted, fontWeight: 500 }}>API</span></div>
         </div>
@@ -429,7 +431,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
           {/* ─── Right column ─── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4, minHeight: 0 }}>
             {/* Chat */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", flex: "1 1 55%", minHeight: 0 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", flex: "1 1 60%", minHeight: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <MessageSquare size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Research Chat</span>
@@ -455,7 +457,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
             </div>
 
             {/* Pipeline */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: "1 1 45%", minHeight: 0, overflow: "hidden" }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: "1 1 40%", minHeight: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <Database size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
@@ -491,9 +493,10 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
         <div>
           <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
           <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
-            Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes.
-            For true intraday bars (5-min / 15-min / 60-min), I would switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices.
-            The pipeline architecture stays the same — only the fetcher service would change.
+            {apiTier === "paid"
+              ? "This is the most recent data available to Alpha Vantage."
+              : "Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes. For true intraday bars (5-min / 15-min / 60-min), switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices. The pipeline architecture stays the same — only the fetcher service would change."
+            }
           </div>
         </div>
         <button onClick={() => setShowInfo(true)} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 7, background: C.accent, color: "#fff", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 2px 10px rgba(37,99,235,0.3)", whiteSpace: "nowrap" }}>

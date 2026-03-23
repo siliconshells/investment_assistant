@@ -38,12 +38,12 @@ def fetch_and_store(ticker: str, **kwargs):
     from app.services.stock_fetcher import fetch_daily_prices
     from app.services.storage import save_prices
 
-    prices = asyncio.run(fetch_daily_prices(ticker))
+    prices, api_tier = asyncio.run(fetch_daily_prices(ticker))
     if not prices:
         raise ValueError(f"No data returned for {ticker}")
 
     save_prices(ticker, prices)
-    return f"Stored {len(prices)} price points for {ticker}"
+    return f"Stored {len(prices)} price points for {ticker} via {api_tier} key"
 
 
 def validate_data(ticker: str, **kwargs):
