@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 from fastapi import APIRouter, HTTPException
 
+from app.config import get_settings
 from app.models.schemas import PricePoint, PriceResponse
 from app.services import stock_fetcher, storage
 
@@ -33,7 +34,10 @@ async def get_prices(ticker: str):
         latest_stored = date.fromisoformat(prices[-1]["date"])
         needs_fetch = latest_stored < _last_trading_day()
 
-    api_tier = "free"
+    settings = get_settings()
+    has_paid_key = bool(settings.alpha_vantage_api_key and settings.alpha_vantage_api_key != "demo")
+    api_tier = "paid" if has_paid_key else "free"
+
     if needs_fetch:
         fresh, api_tier = await stock_fetcher.fetch_daily_prices(ticker)
         if fresh:
