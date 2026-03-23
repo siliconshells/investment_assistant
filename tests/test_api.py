@@ -90,7 +90,7 @@ class TestPrices:
     ):
         """Fetches from Alpha Vantage and stores when no cached data exists."""
         mock_load.return_value = None
-        mock_fetch.return_value = sample_prices
+        mock_fetch.return_value = (sample_prices, "paid")
 
         response = client.get("/prices/MSFT")
 
@@ -105,7 +105,7 @@ class TestPrices:
     def test_get_prices_404_when_no_data(self, mock_load, mock_fetch):
         """Returns 404 when ticker has no data anywhere."""
         mock_load.return_value = None
-        mock_fetch.return_value = []
+        mock_fetch.return_value = ([], "free")
 
         response = client.get("/prices/ZZZZZ")
         assert response.status_code == 404
@@ -116,7 +116,7 @@ class TestPrices:
     )
     def test_refresh_forces_fresh_fetch(self, mock_fetch, mock_save, sample_prices):
         """POST /prices/{ticker}/refresh bypasses cache and fetches fresh data."""
-        mock_fetch.return_value = sample_prices
+        mock_fetch.return_value = (sample_prices, "paid")
 
         response = client.post("/prices/AAPL/refresh")
 
@@ -132,7 +132,7 @@ class TestPrices:
     )
     def test_refresh_502_when_fetch_fails(self, mock_fetch):
         """POST /prices/{ticker}/refresh returns 502 when upstream fails."""
-        mock_fetch.return_value = []
+        mock_fetch.return_value = ([], "free")
 
         response = client.post("/prices/NVDA/refresh")
         assert response.status_code == 502
@@ -196,7 +196,7 @@ class TestAnalyze:
     def test_analyze_404_no_data(self, mock_load, mock_fetch):
         """Returns 404 when no price data is available."""
         mock_load.return_value = None
-        mock_fetch.return_value = []
+        mock_fetch.return_value = ([], "free")
 
         response = client.post("/analyze", json={"ticker": "NOPE"})
         assert response.status_code == 404
