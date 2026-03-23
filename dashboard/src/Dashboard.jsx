@@ -336,7 +336,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
         </div>
       </header>
 
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", padding: "14px 26px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", padding: "14px 26px 10px", display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ─── Ticker bar with refresh and last-updated ─── */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {watchlist.map(t => <button key={t} className={`tk ${t === ticker ? "on" : ""}`} onClick={() => setTicker(t)}>{t}</button>)}
@@ -455,7 +455,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
             </div>
 
             {/* Pipeline */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1, minHeight: 0, overflow: "hidden", maxHeight: "33%" }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, flex: 1, minHeight: 0, overflow: "hidden", maxHeight: "50%" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                 <Database size={13} color={C.accent} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
@@ -487,7 +487,7 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
       </div>
 
       {/* ─── Footer notice ─── */}
-      <div style={{ flexShrink: 0, margin: "0 26px 6px", padding: "8px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+      <div style={{ flexShrink: 0, margin: "0px 26px 6px", padding: "8px 18px", background: C.amberSoft, border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div>
           <div style={{ fontSize: 12, color: C.amber, fontWeight: 700, marginBottom: 4 }}>Data Frequency Notice</div>
           <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
