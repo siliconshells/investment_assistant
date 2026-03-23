@@ -216,8 +216,8 @@ class TestLLMService:
         lines = result.strip().split("\n")
         assert len(lines) == 4  # header + 3 data rows
 
-    def test_format_price_context_caps_at_30(self):
-        """Caps data at 30 rows to control LLM token costs."""
+    def test_format_price_context_includes_all_rows(self):
+        """Includes all rows so the LLM has full price history."""
         from app.services.llm_service import _format_price_context
 
         big_data = [
@@ -233,4 +233,4 @@ class TestLLMService:
         ]
         result = _format_price_context(big_data)
         lines = result.strip().split("\n")
-        assert len(lines) == 31  # header + 30 data rows
+        assert len(lines) == len(big_data) + 1  # header + all data rows
