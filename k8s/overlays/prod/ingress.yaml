@@ -24,6 +24,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: investment-api-public
+                name: investment-api
                 port:
                   number: 80

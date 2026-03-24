@@ -111,6 +111,9 @@ jobs:
           cd k8s/overlays/prod
           kustomize edit set image investment-api=$IMAGE
 
+          # delete the deployment
+          kubectl delete deployment investment-api -n investment
+
           # Apply via Kustomize
           kubectl apply -k . --server-side
 
