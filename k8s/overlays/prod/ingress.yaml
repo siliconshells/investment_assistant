@@ -4,12 +4,18 @@ metadata:
   name: investment-api-ingress
   namespace: investment
   annotations:
+    # Tell AWS to build an Application Load Balancer
     kubernetes.io/ingress.class: alb
-    # internet-facing for demo; change to "internal" for real internal tools
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/healthcheck-path: /health
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    
+    # Open both ports and attach your certificate
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:620173787208:certificate/db734853-f660-47c7-9be8-574bf43f798e"
+    
+    # The magic redirect rule
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+
 spec:
   rules:
     - http:
@@ -18,6 +24,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: investment-api
+                name: investment-api-public
                 port:
                   number: 80

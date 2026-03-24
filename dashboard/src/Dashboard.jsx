@@ -40,9 +40,9 @@ function buildAnalysis(ticker, prices) {
   const avgV = Math.round(prices.reduce((s, p) => s + p.volume, 0) / prices.length);
   const gain = (latest.close - prices[0].close).toFixed(2);
   return {
-    provider: "Anthropic Claude",
+    provider: "OpenAI",
     dataPoints: prices.length,
-    text: `**${ticker} Analysis** — The stock has gained ${gain > 0 ? "+" : ""}${gain} over the past ${prices.length} sessions, trending steadily upward. Recent price action shows consolidation near ${latest.close.toFixed(0)} with average daily volume of ${(avgV / 1e6).toFixed(1)}M shares.\n\n**Key Levels:** Resistance at ${hi.toFixed(2)} (period high). Support established near ${lo.toFixed(2)} with buyers stepping in consistently at that zone.\n\n**Outlook:** Momentum is constructive. A break above ${hi.toFixed(2)} on elevated volume would confirm continuation. A pullback into the ${(latest.close * 0.97).toFixed(2)}–${(latest.close * 0.98).toFixed(2)} zone could present an entry opportunity for accumulation.`,
+    text: `**${ticker} Analysis:** The stock has gained ${gain > 0 ? "+" : ""}${gain} over the past ${prices.length} sessions, trending steadily upward. Recent price action shows consolidation near ${latest.close.toFixed(0)} with average daily volume of ${(avgV / 1e6).toFixed(1)}M shares.\n**Key Levels:** Resistance at ${hi.toFixed(2)} (period high). Support established near ${lo.toFixed(2)} with buyers stepping in consistently at that zone.\n**Outlook:** Momentum is constructive. A break above ${hi.toFixed(2)} on elevated volume would confirm continuation. A pullback into the ${(latest.close * 0.97).toFixed(2)}–${(latest.close * 0.98).toFixed(2)} zone could present an entry opportunity for accumulation.`,
   };
 }
 
@@ -245,13 +245,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticker,
-          question: `Write a concise analysis in exactly this format — no extra commentary:
-
-{TICKER} Analysis — [one sentence: total gain/loss over the period, trend direction, consolidation price, avg daily volume]
-
-Key Levels: [resistance and support levels with context]
-
-Outlook: [forward-looking commentary on momentum, breakout levels, and potential entry zones]`,
+          question: `Write a concise stock analysis structured with exactly these three sections: **${ticker} Analysis:**, **Key Levels:**, and **Outlook:**. Use your own words and insights from the price data — do not use placeholder text.`,
         }),
       });
       const data = await res.json();
@@ -463,11 +457,11 @@ Outlook: [forward-looking commentary on momentum, breakout levels, and potential
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Pipeline</span>
                 <span style={{ marginLeft: "auto", fontSize: 10.5, fontFamily: "'Source Code Pro', monospace", color: C.textDim }}></span> 
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                 {pipelineRows.map(t => (
                   <div key={t.id} style={{
                     display: "grid", gridTemplateColumns: "7px 50px 64px 1fr 46px", alignItems: "center", gap: 8,
-                    padding: "3px 8px", borderRadius: 6, fontSize: 11.5, fontFamily: "'Source Code Pro', monospace",
+                    padding: "1px 8px", borderRadius: 6, fontSize: 11.5, fontFamily: "'Source Code Pro', monospace",
                     background: t.status === "failed" ? C.redSoft : "transparent",
                   }}>
                     <Dot status={t.status} />
