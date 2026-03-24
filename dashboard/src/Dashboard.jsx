@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 // In dev, Vite proxy rewrites /api/* → localhost:8000/*.
-// In production, dashboard is served from FastAPI itself — no prefix needed.
+// In production, dashboard is served from FastAPI itself, no prefix needed.
 const API = import.meta.env.DEV ? "/api" : "";
 
 
@@ -18,7 +18,7 @@ function pipelineStatusToRows(tickers) {
   let id = 1;
   const rows = [];
   for (const t of tickers) {
-    const time = t.last_data_date ? t.last_data_date.slice(5).replace("-", "/") : "—";
+    const time = t.last_data_date ? t.last_data_date.slice(5).replace("-", "/") : ",";
     let fetchStatus, validateStatus;
     if (t.status === "healthy") {
       fetchStatus = "success"; validateStatus = "success";
@@ -27,8 +27,8 @@ function pipelineStatusToRows(tickers) {
     } else {
       fetchStatus = "failed"; validateStatus = "pending";
     }
-    rows.push({ id: id++, ticker: t.ticker, stage: "fetch", status: fetchStatus, dur: "—", time });
-    rows.push({ id: id++, ticker: t.ticker, stage: "validate", status: validateStatus, dur: "—", time: validateStatus === "pending" ? "—" : time });
+    rows.push({ id: id++, ticker: t.ticker, stage: "fetch", status: fetchStatus, dur: ",", time });
+    rows.push({ id: id++, ticker: t.ticker, stage: "validate", status: validateStatus, dur: ",", time: validateStatus === "pending" ? "," : time });
   }
   return rows;
 }
@@ -47,7 +47,7 @@ function buildAnalysis(ticker, prices) {
 }
 
 function formatDataDate(dateStr) {
-  if (!dateStr) return "—";
+  if (!dateStr) return ",";
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -245,7 +245,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticker,
-          question: `Write a concise stock analysis structured with exactly these three sections: **${ticker} Analysis:**, **Key Levels:**, and **Outlook:**. Use your own words and insights from the price data — do not use placeholder text.`,
+          question: `Write a concise stock analysis structured with exactly these three sections: **${ticker} Analysis:**, **Key Levels:**, and **Outlook:**. Use your own words and insights from the price data, do not use placeholder text.`,
         }),
       });
       const data = await res.json();
@@ -369,7 +369,7 @@ export default function Dashboard() {
           {/* Chart + analysis */}
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "10px 20px", display: "flex", flexDirection: "column", gap: 14, overflow: "hidden", minHeight: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Price — {ticker}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Price, {ticker}</span>
               <button className="ab" onClick={runAnalysis} disabled={analyzing}>
                 <Zap size={13} /> {analyzing ? "Analyzing..." : "Run AI Analysis"}
               </button>
@@ -402,7 +402,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
 
-            {/* Analysis — always visible, pre-loaded on mount */}
+            {/* Analysis, always visible, pre-loaded on mount */}
             <div className="anim" style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "8px 16px", flex: 1, minHeight: 0, overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
                 <Zap size={13} color={C.accent} />
@@ -489,7 +489,7 @@ export default function Dashboard() {
           <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.65 }}>
             {apiTier === "paid"
               ? "This is the most recent data available to Alpha Vantage."
-              : "Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes. For true intraday bars (5-min / 15-min / 60-min), switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices. The pipeline architecture stays the same — only the fetcher service would change."
+              : "Alpha Vantage's free tier returns end-of-day data only, so intraday pipeline runs will show the same daily candle until the next trading day closes. For true intraday bars (5-min / 15-min / 60-min), switch to Alpha Vantage's intraday endpoint or a provider such as Polygon or Alpaca that streams intraday prices. The pipeline architecture stays the same, only the fetcher service would change."
             }
           </div>
         </div>
@@ -529,14 +529,14 @@ export default function Dashboard() {
 
             {/* Scrollable content */}
             <div style={{ overflowY: "auto", maxHeight: "72vh", display: "flex", flexDirection: "column", gap: 18, fontSize: 13.5, color: C.textMid, lineHeight: 1.75 }}>
-              <p>An end-to-end platform that automates the collection, storage, and AI-powered analysis of stock market data for internal research teams. The system runs an intraday data pipeline via Airflow, exposes structured data and LLM-generated analysis through a FastAPI backend, and presents everything through this React dashboard — all containerized with Docker, orchestrated on Kubernetes, provisioned via Terraform on AWS, and deployed through a GitHub Actions CI/CD pipeline.</p>
+              <p>An end-to-end platform that automates the collection, storage, and AI-powered analysis of stock market data for internal research teams. The system runs an intraday data pipeline via Airflow, exposes structured data and LLM-generated analysis through a FastAPI backend, and presents everything through this React dashboard, all containerized with Docker, orchestrated on Kubernetes, provisioned via Terraform on AWS, and deployed through a GitHub Actions CI/CD pipeline.</p>
               <img src="/diagram2.png" alt="Architecture diagram" style={{ width: "100%", borderRadius: 10, border: `1px solid ${C.border}` }} />
 
               {[
                 {
                   title: "1. Automated Data Pipelines & Orchestration (Airflow)",
                   body: <>
-                    <p>The Airflow DAG (<code>intraday_stock_etl</code>) runs every 3 hours during US market hours — 9:30 AM, 12:30 PM, 3:30 PM, and 6:30 PM ET, weekdays only. The 6:30 run captures final closing prices after market close.</p>
+                    <p>The Airflow DAG (<code>intraday_stock_etl</code>) runs every 3 hours during US market hours, 9:30 AM, 12:30 PM, 3:30 PM, and 6:30 PM ET, weekdays only. The 6:30 run captures final closing prices after market close.</p>
                     <p style={{ marginTop: 8 }}>For each ticker in the watchlist (AAPL, MSFT, GOOGL, AMZN, NVDA), the DAG executes three stages:</p>
                     <ul style={{ paddingLeft: 18, marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                       <li><strong>Fetch:</strong> Pulls daily price data from Alpha Vantage and writes structured JSON to S3.</li>
@@ -548,8 +548,8 @@ export default function Dashboard() {
                 {
                   title: "2. Containerization & Deployment (Docker + Kubernetes on AWS)",
                   body: <>
-                    <p><strong>Docker:</strong> A three-stage build — Stage 1 builds the React dashboard with Vite; Stage 2 installs Python dependencies; Stage 3 assembles the final slim image. The result is a single container serving both the API and frontend, running as a non-root user with a healthcheck against <code>/health</code>.</p>
-                    <p style={{ marginTop: 8 }}><strong>Kubernetes:</strong> Kustomize base/overlay structure — <code>k8s/base/</code> contains standalone YAML (Deployment, Service, ConfigMap, ServiceAccount, Namespace). <code>overlays/prod/</code> adds ECR image reference, IRSA annotation, and an internet-facing ALB Ingress. The Deployment includes resource requests/limits, liveness probes every 30s, and readiness probes every 10s.</p>
+                    <p><strong>Docker:</strong> A three-stage build, Stage 1 builds the React dashboard with Vite; Stage 2 installs Python dependencies; Stage 3 assembles the final slim image. The result is a single container serving both the API and frontend, running as a non-root user with a healthcheck against <code>/health</code>.</p>
+                    <p style={{ marginTop: 8 }}><strong>Kubernetes:</strong> Kustomize base/overlay structure, <code>k8s/base/</code> contains standalone YAML (Deployment, Service, ConfigMap, ServiceAccount, Namespace). <code>overlays/prod/</code> adds ECR image reference, IRSA annotation, and an internet-facing ALB Ingress. The Deployment includes resource requests/limits, liveness probes every 30s, and readiness probes every 10s.</p>
                   </>
                 },
                 {
@@ -557,13 +557,13 @@ export default function Dashboard() {
                   body: <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
                     <tbody>
                       {[
-                        ["GET", "/health", "Health check — returns environment and LLM provider"],
+                        ["GET", "/health", "Health check, returns environment and LLM provider"],
                         ["GET", "/prices/{ticker}", "Returns stored price data; auto-fetches on cache miss"],
                         ["POST", "/prices/{ticker}/refresh", "Force-fetches fresh data, bypassing cache"],
                         ["POST", "/analyze", "Sends price data to LLM, returns plain-English analysis"],
                         ["GET", "/watchlist", "Returns the list of tracked tickers"],
                         ["GET", "/pipeline/status", "Pipeline health derived from data freshness"],
-                        ["POST", "/pipeline/complete", "Airflow webhook — broadcasts SSE to dashboards"],
+                        ["POST", "/pipeline/complete", "Airflow webhook, broadcasts SSE to dashboards"],
                         ["GET", "/events/pipeline", "SSE stream for real-time dashboard notifications"],
                         ["GET", "/docs", "Auto-generated Swagger UI"],
                       ].map(([method, path, desc]) => (
@@ -600,7 +600,7 @@ export default function Dashboard() {
                     <li><strong>Typed Pydantic schemas</strong> serve as a runtime-enforced contract between the backend and consuming teams</li>
                     <li><strong>Auto-generated OpenAPI docs</strong> at <code>/docs</code> give research teams interactive documentation without reading code</li>
                     <li><strong>This dashboard</strong> translates raw API data into price charts, AI analysis, a chat interface, and pipeline health monitoring</li>
-                    <li><strong>Configurable watchlist</strong> in the Airflow DAG — analysts extend it by name, no pipeline code changes needed</li>
+                    <li><strong>Configurable watchlist</strong> in the Airflow DAG - analysts extend it by name, no pipeline code changes needed</li>
                     <li><strong>Test suite</strong> with mocked external dependencies covers the full request-response cycle for every endpoint</li>
                   </ul>
                 },

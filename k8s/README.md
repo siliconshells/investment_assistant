@@ -7,14 +7,14 @@ environment-specific configuration without template variables in YAML.
 
 ```
 k8s/
-├── base/                    # Shared manifests — valid YAML, no variables
+├── base/                    # Shared manifests, valid YAML, no variables
 │   ├── kustomization.yaml
 │   ├── namespace.yaml
 │   ├── serviceaccount.yaml
 │   ├── configmap.yaml
 │   ├── deployment.yaml
 │   ├── service.yaml
-│   └── secrets.template.yaml   # NOT auto-applied — see below
+│   └── secrets.template.yaml   # NOT auto-applied, see below
 └── overlays/
     ├── dev/                 # Local development: 1 replica, debug logging
     │   └── kustomization.yaml
@@ -64,7 +64,7 @@ kubectl apply -k k8s/overlays/prod
 ### Validate without a cluster
 
 ```bash
-# Kustomize renders locally — no cluster auth needed
+# Kustomize renders locally, no cluster auth needed
 kubectl kustomize k8s/overlays/dev
 kubectl kustomize k8s/overlays/prod
 ```
